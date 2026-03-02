@@ -55,20 +55,35 @@ kann er nachtraeglich ueber CUPS hinzugefuegt werden: `https://<PI-IP>:631`
 
 Erreichbar unter `http://<PI-IP>:8080`
 
-**Funktionen:**
-- Live-Status von Drucker und Services
-- Druckwarteschlange anzeigen/verwalten
-- Dateien verwalten (wartend / gedruckt / fehlgeschlagen)
-- Fehlgeschlagene Drucke erneut versuchen
-- Services neu starten
-- Live-Log-Ansicht
+**Seiten:**
+
+| Seite | Pfad | Beschreibung |
+|---|---|---|
+| Dashboard | `/` | Live-Status, Statistiken, Druckwarteschlange, Services |
+| Dateien | `/files` | Wartende/gedruckte/fehlgeschlagene PDFs verwalten, Retry |
+| CUPS | `/cups` | Volle CUPS-Verwaltung (Drucker, Jobs, Optionen, Testdruck) |
+| Logs | `/logs` | Live-Log-Ansicht mit Auto-Refresh und Farbcodierung |
+
+**CUPS-Verwaltung (Seite `/cups`):**
+- Alle konfigurierten Drucker anzeigen, Standard-Drucker setzen
+- Drucker fortsetzen / anhalten / Testdruck senden
+- Druckeroptionen live aendern (Papierformat, Farbmodus, Qualitaet etc.)
+- Einzelne Druckauftraege halten / fortsetzen / abbrechen
+- Abgeschlossene Auftraege einsehen
+- Direktlink zum CUPS Web-Interface (`https://<PI-IP>:631`)
 
 **API-Endpunkte:**
 - `GET /api/status` — Gesamtstatus als JSON
 - `GET /api/logs?lines=50` — Log-Eintraege
 - `POST /api/printer/resume` — Drucker fortsetzen
 - `POST /api/printer/pause` — Drucker anhalten
+- `POST /api/printer/test` — Testseite drucken
 - `POST /api/printer/cancel-all` — Alle Auftraege abbrechen
+- `POST /api/printer/set-default/<name>` — Standard-Drucker setzen
+- `POST /api/printer/option` — Druckeroption aendern (JSON: key, value)
+- `POST /api/job/cancel/<id>` — Einzelnen Auftrag abbrechen
+- `POST /api/job/hold/<id>` — Auftrag anhalten
+- `POST /api/job/release/<id>` — Auftrag fortsetzen
 - `POST /api/service/<name>/restart` — Service neu starten
 - `POST /api/files/retry/<filename>` — Datei erneut drucken
 - `POST /api/files/delete/<folder>/<filename>` — Datei loeschen
