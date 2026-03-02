@@ -67,6 +67,105 @@ def get_queue():
     return jobs
 
 
+def get_queue_detailed():
+    """Detaillierte Druckwarteschlange mit Job-IDs."""
+    output = run_cmd("lpstat -o -l 2>/dev/null")
+    if not output:
+        return []
+    jobs = []
+    current = {}
+    for line in output.strip().split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        # Neue Job-Zeile: "EcoTank-ET2820-123 user 1024 ..."
+        parts = line.split()
+        if parts and "-" in parts[0] and not line.startswith(" "):
+            if current:
+                jobs.append(current)
+            job_id = parts[0]
+            current = {
+                "id": job_id,
+                "raw": line,
+                "job_number": job_id.rsplit("-", 1)[-1] if "-" in job_id else job_id,
+            }
+        elif current:
+            current["raw"] += " " + line
+    if current:
+        jobs.append(current)
+    return jobs
+
+
+def get_all_printers():
+    """Alle in CUPS konfigurierten Drucker auflisten."""
+    output = run_cmd("lpstat -p -d 2>/dev/null")
+    if not output:
+        return [], None
+    printers = []
+    default = None
+    for line in output.strip().split("\n"):
+        line = line.strip()
+        if line.startswith("printer "):
+            parts = line.split()
+            name = parts[1] if len(parts) > 1 else "?"
+            status = "Bereit" if "idle" in line.lower() else (
+                "Druckt" if "printing" in line.lower() else (
+                    "Angehalten" if "disabled" in line.lower() else "Unbekannt"
+                )
+            )
+            ok = "disabled" not in line.lower() and "stopped" not in line.lower()
+            printers.append({"name": name, "status": status, "ok": ok, "raw": line})
+        elif line.startswith("system default destination:"):
+            default = line.split(":")[-1].strip()
+    return printers, default
+
+
+def get_printer_details(name):
+    """Detaillierte Druckerinfo via lpoptions."""
+    info = {"name": name, "options": {}, "uri": "", "make": ""}
+
+    # URI und Modell
+    output = run_cmd(f"lpstat -v {name} 2>/dev/null")
+    if output:
+        info["uri"] = output.split(":", 1)[-1].strip() if ":" in output else output
+
+    # Optionen
+    output = run_cmd(f"lpoptions -p {name} -l 2>/dev/null")
+    if output:
+        for line in output.strip().split("\n"):
+            if "/" in line and ":" in line:
+                key_part, val_part = line.split(":", 1)
+                opt_key = key_part.split("/")[0].strip()
+                opt_label = key_part.split("/")[1].strip() if "/" in key_part else opt_key
+                choices = val_part.strip().split()
+                current = None
+                options = []
+                for c in choices:
+                    if c.startswith("*"):
+                        current = c[1:]
+                        options.append(c[1:])
+                    else:
+                        options.append(c)
+                info["options"][opt_key] = {
+                    "label": opt_label,
+                    "current": current,
+                    "choices": options,
+                }
+    return info
+
+
+def get_completed_jobs(limit=20):
+    """Abgeschlossene CUPS-Jobs auflisten."""
+    output = run_cmd(f"lpstat -W completed -o 2>/dev/null")
+    if not output:
+        return []
+    jobs = []
+    for line in output.strip().split("\n"):
+        if line.strip():
+            jobs.append(line.strip())
+    return jobs[:limit]
+
+
 def list_files(directory, limit=50):
     """Dateien in einem Verzeichnis auflisten."""
     files = []
@@ -154,6 +253,24 @@ def files():
     )
 
 
+@app.route("/cups")
+def cups():
+    """CUPS Verwaltungsseite."""
+    printers, default_printer = get_all_printers()
+    details = get_printer_details(PRINTER_NAME)
+    queue = get_queue_detailed()
+    completed = get_completed_jobs()
+    return render_template(
+        "cups.html",
+        printers=printers,
+        default_printer=default_printer,
+        details=details,
+        queue=queue,
+        completed=completed,
+        printer_name=PRINTER_NAME,
+    )
+
+
 @app.route("/logs")
 def logs():
     """Log-Ansicht."""
@@ -203,6 +320,61 @@ def printer_cancel_all():
     """Alle Druckauftraege abbrechen."""
     run_cmd(f"cancel -a {PRINTER_NAME}")
     return jsonify({"ok": True, "message": "Alle Auftraege abgebrochen"})
+
+
+@app.route("/api/printer/test", methods=["POST"])
+def printer_test():
+    """CUPS Testseite drucken."""
+    output = run_cmd(f"lp -d {PRINTER_NAME} /usr/share/cups/data/testprint 2>&1")
+    if not output:
+        output = run_cmd(f"lp -d {PRINTER_NAME} /usr/share/doc/cups/images/cups-icon.png 2>&1")
+    if "request id" in output.lower() or output:
+        return jsonify({"ok": True, "message": f"Testdruck gesendet: {output}"})
+    return jsonify({"ok": False, "message": "Testdruck fehlgeschlagen"})
+
+
+@app.route("/api/printer/set-default/<name>", methods=["POST"])
+def printer_set_default(name):
+    """Drucker als Standard setzen."""
+    safe_name = os.path.basename(name)
+    run_cmd(f"lpadmin -d {safe_name}")
+    return jsonify({"ok": True, "message": f"{safe_name} als Standard gesetzt"})
+
+
+@app.route("/api/job/cancel/<job_id>", methods=["POST"])
+def job_cancel(job_id):
+    """Einzelnen Druckauftrag abbrechen."""
+    safe_id = os.path.basename(job_id)
+    run_cmd(f"cancel {safe_id}")
+    return jsonify({"ok": True, "message": f"Auftrag {safe_id} abgebrochen"})
+
+
+@app.route("/api/job/hold/<job_id>", methods=["POST"])
+def job_hold(job_id):
+    """Druckauftrag anhalten."""
+    safe_id = os.path.basename(job_id)
+    run_cmd(f"lp -i {safe_id} -H hold")
+    return jsonify({"ok": True, "message": f"Auftrag {safe_id} angehalten"})
+
+
+@app.route("/api/job/release/<job_id>", methods=["POST"])
+def job_release(job_id):
+    """Angehaltenen Druckauftrag fortsetzen."""
+    safe_id = os.path.basename(job_id)
+    run_cmd(f"lp -i {safe_id} -H resume")
+    return jsonify({"ok": True, "message": f"Auftrag {safe_id} fortgesetzt"})
+
+
+@app.route("/api/printer/option", methods=["POST"])
+def printer_set_option():
+    """Druckeroption setzen."""
+    data = request.get_json()
+    if not data or "key" not in data or "value" not in data:
+        return jsonify({"ok": False, "message": "key und value erforderlich"}), 400
+    key = data["key"].replace(" ", "").replace(";", "")
+    value = data["value"].replace(" ", "").replace(";", "")
+    run_cmd(f"lpoptions -p {PRINTER_NAME} -o {key}={value}")
+    return jsonify({"ok": True, "message": f"{key}={value} gesetzt"})
 
 
 @app.route("/api/service/<name>/restart", methods=["POST"])

@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}CUPS Verwaltung - Print Server{% endblock %}
+{% block content %}
+<div class="refresh-bar">
+    <h1>CUPS Verwaltung</h1>
+    <div style="display: flex; align-items: center; gap: 1rem;">
+        <span id="auto-refresh-indicator"></span>
+        <a class="btn btn-sm" href="https://{{ request.host.split(':')[0] }}:631" target="_blank">
+            CUPS Web-Interface
+        </a>
+    </div>
+</div>
+
+<div class="grid grid-2" style="margin-bottom: 1.5rem;">
+    <!-- Drucker-Uebersicht -->
+    <div class="card">
+        <h2>Konfigurierte Drucker</h2>
+        {% if printers %}
+        <table>
+            <thead>
+                <tr><th>Drucker</th><th>Status</th><th>Aktionen</th></tr>
+            </thead>
+            <tbody>
+                {% for p in printers %}
+                <tr>
+                    <td>
+                        <span class="status-dot {% if p.ok %}status-ok{% else %}status-err{% endif %}"></span>
+                        <strong>{{ p.name }}</strong>
+                        {% if p.name == default_printer %}
+                        <span class="badge badge-green">Standard</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge {% if p.ok %}badge-green{% else %}badge-red{% endif %}">
+                            {{ p.status }}
+                        </span>
+                    </td>
+                    <td class="actions">
+                        {% if p.name != default_printer %}
+                        <button class="btn btn-sm" onclick="apiCall('/api/printer/set-default/{{ p.name }}')">
+                            Als Standard
+                        </button>
+                        {% endif %}
+                        {% if not p.ok %}
+                        <button class="btn btn-green btn-sm" onclick="apiCall('/api/printer/resume')">
+                            Aktivieren
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">Keine Drucker konfiguriert</div>
+        {% endif %}
+    </div>
+
+    <!-- Drucker-Steuerung -->
+    <div class="card">
+        <h2>Steuerung: {{ printer_name }}</h2>
+        <div style="margin-bottom: 1rem;">
+            <span style="color: var(--text-dim); font-size: 0.85rem;">URI:</span>
+            <code style="font-size: 0.85rem; color: var(--accent);">{{ details.uri }}</code>
+        </div>
+        <div class="actions" style="margin-bottom: 1rem;">
+            <button class="btn btn-green btn-sm" onclick="apiCall('/api/printer/resume')">
+                Fortsetzen
+            </button>
+            <button class="btn btn-sm" onclick="apiCall('/api/printer/pause')">
+                Anhalten
+            </button>
+            <button class="btn btn-sm" onclick="apiCall('/api/printer/test')">
+                Testdruck
+            </button>
+            <button class="btn btn-red btn-sm" onclick="if(confirm('Alle Auftraege abbrechen?')) apiCall('/api/printer/cancel-all')">
+                Alle abbrechen
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Druckeroptionen -->
+{% if details.options %}
+<div class="card" style="margin-bottom: 1.5rem;">
+    <h2>Druckeroptionen ({{ printer_name }})</h2>
+    <table>
+        <thead>
+            <tr><th>Option</th><th>Aktueller Wert</th><th>Aendern</th></tr>
+        </thead>
+        <tbody>
+            {% for key, opt in details.options.items() %}
+            <tr>
+                <td>
+                    <strong>{{ opt.label }}</strong>
+                    <br><span style="font-size: 0.75rem; color: var(--text-dim);">{{ key }}</span>
+                </td>
+                <td>
+                    {% if opt.current %}
+                    <span class="badge badge-green">{{ opt.current }}</span>
+                    {% else %}
+                    <span style="color: var(--text-dim);">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <select onchange="setOption('{{ key }}', this.value)" style="
+                        background: var(--bg); color: var(--text); border: 1px solid var(--border);
+                        border-radius: 6px; padding: 0.3rem 0.5rem; font-size: 0.8rem;
+                    ">
+                        {% for c in opt.choices %}
+                        <option value="{{ c }}" {% if c == opt.current %}selected{% endif %}>{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<div class="grid grid-2">
+    <!-- Aktive Warteschlange -->
+    <div class="card">
+        <h2>Aktive Auftraege ({{ queue|length }})</h2>
+        {% if queue %}
+        <table>
+            <thead>
+                <tr><th>Auftrag</th><th>Aktionen</th></tr>
+            </thead>
+            <tbody>
+                {% for job in queue %}
+                <tr>
+                    <td style="font-size: 0.85rem;">{{ job.raw }}</td>
+                    <td class="actions">
+                        <button class="btn btn-sm" onclick="apiCall('/api/job/hold/{{ job.id }}')">
+                            Halten
+                        </button>
+                        <button class="btn btn-green btn-sm" onclick="apiCall('/api/job/release/{{ job.id }}')">
+                            Fortsetzen
+                        </button>
+                        <button class="btn btn-red btn-sm" onclick="apiCall('/api/job/cancel/{{ job.id }}')">
+                            Abbrechen
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">Keine aktiven Auftraege</div>
+        {% endif %}
+    </div>
+
+    <!-- Abgeschlossene Jobs -->
+    <div class="card">
+        <h2>Abgeschlossene Auftraege</h2>
+        {% if completed %}
+        <table>
+            <thead>
+                <tr><th>Auftrag</th></tr>
+            </thead>
+            <tbody>
+                {% for job in completed %}
+                <tr><td style="font-size: 0.85rem;">{{ job }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">Keine abgeschlossenen Auftraege</div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    function setOption(key, value) {
+        fetch('/api/printer/option', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({key: key, value: value})
+        })
+        .then(r => r.json())
+        .then(data => {
+            showToast(data.message, data.ok);
+        })
+        .catch(err => showToast('Fehler: ' + err, false));
+    }
+</script>
+{% endblock %}
