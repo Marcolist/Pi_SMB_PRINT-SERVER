@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Dateien - Print Server{% endblock %}
+{% block content %}
+<div class="refresh-bar">
+    <h1>Dateien</h1>
+    <span id="auto-refresh-indicator"></span>
+</div>
+
+<!-- Wartende Dateien -->
+<div class="card" style="margin-bottom: 1.5rem;">
+    <h2>Wartend ({{ pending|length }})</h2>
+    {% if pending %}
+    <table>
+        <thead>
+            <tr><th>Datei</th><th>Groesse</th><th>Datum</th></tr>
+        </thead>
+        <tbody>
+            {% for f in pending %}
+            <tr>
+                <td>{{ f.name }}</td>
+                <td>{{ f.size_human }}</td>
+                <td>{{ f.modified }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">Keine wartenden Dateien</div>
+    {% endif %}
+</div>
+
+<!-- Fehlgeschlagene Dateien -->
+<div class="card" style="margin-bottom: 1.5rem;">
+    <h2>Fehlgeschlagen ({{ failed|length }})</h2>
+    {% if failed %}
+    <table>
+        <thead>
+            <tr><th>Datei</th><th>Groesse</th><th>Datum</th><th>Aktionen</th></tr>
+        </thead>
+        <tbody>
+            {% for f in failed %}
+            <tr>
+                <td>{{ f.name }}</td>
+                <td>{{ f.size_human }}</td>
+                <td>{{ f.modified }}</td>
+                <td class="actions">
+                    <button class="btn btn-green btn-sm" onclick="apiCall('/api/files/retry/{{ f.name }}')">
+                        Wiederholen
+                    </button>
+                    <button class="btn btn-red btn-sm" onclick="if(confirm('Loeschen?')) apiCall('/api/files/delete/fehler/{{ f.name }}')">
+                        Loeschen
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">Keine fehlgeschlagenen Dateien</div>
+    {% endif %}
+</div>
+
+<!-- Gedruckte Dateien -->
+<div class="card">
+    <h2>Gedruckt ({{ done|length }})</h2>
+    {% if done %}
+    <table>
+        <thead>
+            <tr><th>Datei</th><th>Groesse</th><th>Datum</th><th>Aktionen</th></tr>
+        </thead>
+        <tbody>
+            {% for f in done %}
+            <tr>
+                <td>{{ f.name }}</td>
+                <td>{{ f.size_human }}</td>
+                <td>{{ f.modified }}</td>
+                <td>
+                    <button class="btn btn-red btn-sm" onclick="if(confirm('Loeschen?')) apiCall('/api/files/delete/gedruckt/{{ f.name }}')">
+                        Loeschen
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">Noch keine gedruckten Dateien</div>
+    {% endif %}
+</div>
+{% endblock %}

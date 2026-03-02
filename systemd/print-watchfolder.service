@@ -1,0 +1,16 @@
+[Unit]
+Description=PDF Print Watchfolder Service
+After=network.target smbd.service cups.service
+Wants=smbd.service cups.service
+
+[Service]
+Type=simple
+ExecStart=/opt/printserver/print-watchfolder.sh
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+Environment=PRINTER_NAME=EcoTank-ET2820
+
+[Install]
+WantedBy=multi-user.target

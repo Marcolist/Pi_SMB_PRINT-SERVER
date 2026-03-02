@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Print Server{% endblock %}</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --surface-hover: #334155;
+            --border: #334155;
+            --text: #e2e8f0;
+            --text-dim: #94a3b8;
+            --accent: #3b82f6;
+            --green: #22c55e;
+            --red: #ef4444;
+            --yellow: #eab308;
+            --orange: #f97316;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        nav {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 0 2rem;
+            display: flex;
+            align-items: center;
+            height: 56px;
+            gap: 2rem;
+        }
+        nav .logo {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        nav .logo svg { width: 24px; height: 24px; }
+        nav a {
+            color: var(--text-dim);
+            text-decoration: none;
+            padding: 1rem 0;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+        nav a:hover, nav a.active {
+            color: var(--text);
+            border-bottom-color: var(--accent);
+        }
+        main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        .grid { display: grid; gap: 1.5rem; }
+        .grid-2 { grid-template-columns: 1fr 1fr; }
+        .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+        .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+        @media (max-width: 768px) {
+            .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+            main { padding: 1rem; }
+        }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+        .card h2 {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-dim);
+            margin-bottom: 1rem;
+        }
+        .stat {
+            text-align: center;
+            padding: 1.5rem 1rem;
+        }
+        .stat .value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+        .stat .label {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            margin-top: 0.5rem;
+        }
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+        .status-ok { background: var(--green); box-shadow: 0 0 6px var(--green); }
+        .status-err { background: var(--red); box-shadow: 0 0 6px var(--red); }
+        .status-warn { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        th {
+            text-align: left;
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-dim);
+            font-weight: 500;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        td {
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: var(--surface-hover); }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--surface);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.15s;
+        }
+        .btn:hover { background: var(--surface-hover); border-color: var(--accent); }
+        .btn-green { border-color: var(--green); color: var(--green); }
+        .btn-green:hover { background: #22c55e20; }
+        .btn-red { border-color: var(--red); color: var(--red); }
+        .btn-red:hover { background: #ef444420; }
+        .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
+        .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-green { background: #22c55e20; color: var(--green); }
+        .badge-red { background: #ef444420; color: var(--red); }
+        .badge-yellow { background: #eab30820; color: var(--yellow); }
+        .log-container {
+            background: #0c0c0c;
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.8rem;
+            line-height: 1.6;
+            max-height: 600px;
+            overflow-y: auto;
+            color: #a0a0a0;
+        }
+        .log-line { white-space: pre-wrap; word-break: break-all; }
+        .log-line .ok { color: var(--green); }
+        .log-line .err { color: var(--red); }
+        .log-line .warn { color: var(--yellow); }
+        .log-line .info { color: var(--accent); }
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-dim);
+        }
+        .refresh-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        .refresh-bar h1 { font-size: 1.5rem; }
+        #auto-refresh-indicator {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/>
+                <rect x="6" y="14" width="12" height="8"/>
+            </svg>
+            Print Server
+        </div>
+        <a href="/" class="{% if request.path == '/' %}active{% endif %}">Dashboard</a>
+        <a href="/files" class="{% if request.path == '/files' %}active{% endif %}">Dateien</a>
+        <a href="/logs" class="{% if request.path == '/logs' %}active{% endif %}">Logs</a>
+    </nav>
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+    <script>
+        function apiCall(url, method='POST') {
+            return fetch(url, {method: method})
+                .then(r => r.json())
+                .then(data => {
+                    if (data.message) showToast(data.message, data.ok);
+                    setTimeout(() => location.reload(), 1000);
+                    return data;
+                })
+                .catch(err => showToast('Fehler: ' + err, false));
+        }
+
+        function showToast(msg, ok) {
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed; bottom: 2rem; right: 2rem; padding: 1rem 1.5rem;
+                border-radius: 8px; font-size: 0.9rem; z-index: 9999;
+                background: ${ok ? '#22c55e' : '#ef4444'}; color: white;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+                animation: slideIn 0.3s ease;
+            `;
+            toast.textContent = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        // Auto-Refresh alle 10 Sekunden
+        let refreshInterval = setInterval(() => {
+            fetch('/api/status').then(r => r.json()).then(data => {
+                const indicator = document.getElementById('auto-refresh-indicator');
+                if (indicator) indicator.textContent = 'Aktualisiert: ' + new Date().toLocaleTimeString('de-DE');
+            });
+        }, 10000);
+    </script>
+    <style>
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    </style>
+</body>
+</html>

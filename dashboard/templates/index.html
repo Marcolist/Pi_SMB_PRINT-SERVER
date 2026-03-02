@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Print Server{% endblock %}
+{% block content %}
+<div class="refresh-bar">
+    <h1>Dashboard</h1>
+    <span id="auto-refresh-indicator"></span>
+</div>
+
+<!-- Statistik-Karten -->
+<div class="grid grid-4" style="margin-bottom: 1.5rem;">
+    <div class="card stat">
+        <div class="value" style="color: var(--accent);">{{ stats.pending }}</div>
+        <div class="label">Wartend</div>
+    </div>
+    <div class="card stat">
+        <div class="value" style="color: var(--green);">{{ stats.done }}</div>
+        <div class="label">Gedruckt</div>
+    </div>
+    <div class="card stat">
+        <div class="value" style="color: var(--red);">{{ stats.failed }}</div>
+        <div class="label">Fehlgeschlagen</div>
+    </div>
+    <div class="card stat">
+        <div class="value">{{ queue|length }}</div>
+        <div class="label">In Warteschlange</div>
+    </div>
+</div>
+
+<div class="grid grid-2">
+    <!-- Drucker-Status -->
+    <div class="card">
+        <h2>Drucker</h2>
+        <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+            <div>
+                <span class="status-dot {% if printer.ok %}status-ok{% else %}status-err{% endif %}"></span>
+                <strong>{{ printer.name }}</strong>
+            </div>
+            <span class="badge {% if printer.ok %}badge-green{% else %}badge-red{% endif %}">
+                {{ printer.status }}
+            </span>
+        </div>
+        <div class="actions">
+            <button class="btn btn-green btn-sm" onclick="apiCall('/api/printer/resume')">
+                Fortsetzen
+            </button>
+            <button class="btn btn-sm" onclick="apiCall('/api/printer/pause')">
+                Anhalten
+            </button>
+            <button class="btn btn-red btn-sm" onclick="if(confirm('Alle Auftraege abbrechen?')) apiCall('/api/printer/cancel-all')">
+                Alle abbrechen
+            </button>
+        </div>
+    </div>
+
+    <!-- Services -->
+    <div class="card">
+        <h2>Dienste</h2>
+        <table>
+            <tbody>
+                {% for name, active in services.items() %}
+                <tr>
+                    <td>
+                        <span class="status-dot {% if active %}status-ok{% else %}status-err{% endif %}"></span>
+                        {{ name }}
+                    </td>
+                    <td style="text-align: right;">
+                        {% if name != 'dashboard' %}
+                        <button class="btn btn-sm" onclick="apiCall('/api/service/{{ name }}/restart')">
+                            Neustart
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Druckwarteschlange -->
+<div class="card" style="margin-top: 1.5rem;">
+    <h2>CUPS Warteschlange</h2>
+    {% if queue %}
+    <table>
+        <thead>
+            <tr><th>Auftrag</th></tr>
+        </thead>
+        <tbody>
+            {% for job in queue %}
+            <tr><td>{{ job }}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">Keine Auftraege in der Warteschlange</div>
+    {% endif %}
+</div>
+{% endblock %}

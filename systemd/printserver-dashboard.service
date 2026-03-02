@@ -1,0 +1,16 @@
+[Unit]
+Description=PDF Print Server Web Dashboard
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/opt/printserver/venv/bin/python3 /opt/printserver/app.py
+WorkingDirectory=/opt/printserver
+Restart=always
+RestartSec=5
+Environment=FLASK_ENV=production
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Logs - Print Server{% endblock %}
+{% block content %}
+<div class="refresh-bar">
+    <h1>Logs</h1>
+    <div style="display: flex; align-items: center; gap: 1rem;">
+        <span id="auto-refresh-indicator"></span>
+        <button class="btn btn-sm" onclick="refreshLogs()">Aktualisieren</button>
+        <button class="btn btn-sm" id="scroll-btn" onclick="scrollToBottom()">Nach unten</button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="log-container" id="log-container">
+        {% if log_lines %}
+            {% for line in log_lines %}
+                <div class="log-line">{% if '[OK]' in line %}<span class="ok">{{ line }}</span>{% elif '[FEHLER]' in line or '[ERROR]' in line %}<span class="err">{{ line }}</span>{% elif '[WARN]' in line %}<span class="warn">{{ line }}</span>{% elif '[INFO]' in line %}<span class="info">{{ line }}</span>{% else %}{{ line }}{% endif %}</div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">Keine Log-Eintraege vorhanden</div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    function scrollToBottom() {
+        const container = document.getElementById('log-container');
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function refreshLogs() {
+        fetch('/api/logs?lines=200')
+            .then(r => r.json())
+            .then(data => {
+                const container = document.getElementById('log-container');
+                container.innerHTML = data.logs.map(line => {
+                    let cls = '';
+                    if (line.includes('[OK]')) cls = 'ok';
+                    else if (line.includes('[FEHLER]') || line.includes('[ERROR]')) cls = 'err';
+                    else if (line.includes('[WARN]')) cls = 'warn';
+                    else if (line.includes('[INFO]')) cls = 'info';
+                    return `<div class="log-line">${cls ? `<span class="${cls}">${escHtml(line)}</span>` : escHtml(line)}</div>`;
+                }).join('');
+                scrollToBottom();
+            });
+    }
+
+    function escHtml(s) {
+        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // Auto-refresh Logs alle 5 Sekunden
+    setInterval(refreshLogs, 5000);
+
+    // Beim Laden nach unten scrollen
+    scrollToBottom();
+</script>
+{% endblock %}
