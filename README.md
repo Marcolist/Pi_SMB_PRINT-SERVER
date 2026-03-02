@@ -21,26 +21,35 @@
 git clone <repo-url> /home/pi/printserver
 cd /home/pi/printserver
 
-# 2. Setup ausfuehren
-sudo bash setup_printserver.sh
+# 2. Epson ET-2820 per USB anschliessen (oder WLAN einrichten)
 
-# 3. CUPS Web-Interface oeffnen (von einem anderen PC)
-#    https://<PI-IP>:631
-#    Drucker hinzufuegen → Name: EcoTank-ET2820
+# 3. Setup ausfuehren - installiert alles und richtet Drucker automatisch ein
+sudo bash setup_printserver.sh
 
 # 4. Testen: PDF in die Freigabe kopieren
 cp test.pdf /srv/samba/druckauftraege/
 ```
 
+Das Setup-Skript erledigt automatisch:
+- Samba installieren und konfigurieren (NT 4.0 kompatibel, LAN-Freigabe)
+- CUPS installieren und fuer Netzwerk-Zugriff konfigurieren
+- Epson ET-2820 erkennen (USB → Netzwerk → generisch) und in CUPS einrichten
+- Standardoptionen setzen (A4, Farbe)
+- Watchfolder-Dienst installieren und starten
+- Web-Dashboard installieren und starten
+
+Falls der Drucker nicht automatisch erkannt wird (z.B. noch nicht angeschlossen),
+kann er nachtraeglich ueber CUPS hinzugefuegt werden: `https://<PI-IP>:631`
+
 ## Komponenten
 
 | Komponente | Beschreibung |
 |---|---|
-| `setup_printserver.sh` | Hauptinstallationsskript |
-| `config/smb.conf` | Samba-Konfiguration (NT 4.0 kompatibel) |
+| `setup_printserver.sh` | Hauptinstallationsskript (eigenstaendig: Samba, CUPS, Drucker, Services) |
+| `config/smb.conf` | Samba-Konfiguration als Referenz (wird vom Setup inline erzeugt) |
 | `scripts/print-watchfolder.sh` | Ueberwacht Ordner und druckt PDFs automatisch |
 | `dashboard/app.py` | Web-Dashboard (Flask) |
-| `systemd/*.service` | systemd Service-Dateien |
+| `systemd/*.service` | systemd Service-Dateien als Referenz (werden vom Setup inline erzeugt) |
 
 ## Web-Dashboard
 
@@ -123,7 +132,8 @@ sudo systemctl restart cups
 |---|---|
 | SMB-Freigabe nicht sichtbar | `server min protocol = NT1` gesetzt? Pi per IP ansprechen: `\\192.168.x.x\druckauftraege` |
 | Druck kommt nicht | `sudo systemctl status print-watchfolder` pruefen |
-| Drucker offline in CUPS | CUPS Web-Interface → Drucker → Resume |
+| Drucker offline in CUPS | CUPS Web-Interface → Drucker → Resume, oder Dashboard → Fortsetzen |
+| Drucker nicht erkannt beim Setup | Drucker anschliessen, dann `sudo bash setup_printserver.sh` erneut ausfuehren |
 | Berechtigung verweigert | `chmod -R 777 /srv/samba/druckauftraege` |
 | Log ansehen | `tail -f /var/log/printserver.log` oder Dashboard → Logs |
 | Dashboard nicht erreichbar | `sudo systemctl status printserver-dashboard` |
